@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <title>Smart Watering System</title>
+</head>
+<body>
+    <form method="POST" action="{% url 'solenoid_controller:submit_settings' %}">
+        {% csrf_token %}
+        <h2>Settings</h2>
+        <select id="vegetables" name="vegetables">
+            <optgroup label="0-5% Soil Moisture">
+                <option value="garlic">Garlic</option>
+                <option value="onion">Onion</option>
+            </optgroup>
+            <optgroup label="6-10% Soil Moisture">
+                <option value="artichoke">Artichoke</option>
+                <option value="asparagus">Asparagus</option>
+            </optgroup>
+        </select>
+        <select name="postcode" id="postcode">
+            <optgroup label="Greater Sydney">
+                <option value="2000">2000 - Sydney</option>
+                <option value="2020">2020 - Mascot</option>
+            </optgroup>
+            <optgroup label="Central West">
+                <option value="2795">2795 - Bathurst</option>
+                <option value="2800">2800 - Orange</option>
+            </optgroup>
+        </select>
+        <button type="submit" name="action" value="settings">Submit</button>
+    </form>
+</body>
+</html>
