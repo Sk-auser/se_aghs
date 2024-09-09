@@ -12,6 +12,9 @@ spi = spidev.SpiDev()
 spi.open(0, 0)  
 spi.max_speed_hz = 1350000
 
+# Global variable to track whether the system is active or not
+system_active = True
+
 def setup_pins():
     for pin in relay_pins:
         lgpio.gpio_free(h, pin)
@@ -59,26 +62,40 @@ def submit_settings(request):
         return redirect('control_form') # Go back to the control form
 
 def submit_control(request):
+    global system_active  # Access the global system_active variable
+
     if request.method == 'POST':
         try:
             relay_num = int(request.POST.get('relay'))
             action = request.POST.get('action')
             selected_pin = relay_pins[relay_num - 1]
+
             if action == 'settings':
                 return redirect('settings_form')
-            elif action == 'on':
-                lgpio.gpio_write(h, selected_pin, 1)
-            elif action == 'off':
-                lgpio.gpio_write(h, selected_pin, 0)
-            elif action == 'activate':
-                if is_forecast_data_outdated(request): # Check if forecast is outdated
-                    postcode = request.session.get('postcode') # Get the postcode from the session
-                    tomorrows_percentage = get_weather_data(request, postcode) # Refresh forecast data
-                    store_forecast_in_session(request, tomorrows_percentage) # Store the updated forecast
+            
+            # Deactivate the system
+            elif action == 'deactivate':
+                system_active = False  # Set system to inactive
+                messages.info(request, "System has been deactivated.")  # Show a deactivation message
+                return redirect('control_form')  # Redirect to the control form
+            
+            # Handle relay actions only if the system is active
+            if system_active:
+                if action == 'on':
+                    lgpio.gpio_write(h, selected_pin, 1)
+                elif action == 'off':
+                    lgpio.gpio_write(h, selected_pin, 0)
+                elif action == 'activate':
+                    if is_forecast_data_outdated(request): # Check if forecast is outdated
+                        postcode = request.session.get('postcode') # Get the postcode from the session
+                        tomorrows_percentage = get_weather_data(request, postcode) # Refresh forecast data
+                        store_forecast_in_session(request, tomorrows_percentage) # Store the updated forecast
+
                 sensor_threshold = request.session.get('sensor_threshold', 2000)  # Default threshold
                 run_time = request.session.get('runtime', 120)  # Default runtime in seconds
                
-                while True:
+                # Smart watering loop that can be stopped
+                while system_active:  # Only run the loop if the system is active
                     sensor_value = read_sensor() # Read the soil moisture sensor
                     if sensor_value < sensor_threshold: # Check if the soil is too dry
                         tomorrows_forecast = request.session.get('tomorrows_percentage', 0)  # Fetch stored forecast %                        
