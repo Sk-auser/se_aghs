@@ -66,10 +66,9 @@ def submit_control(request):
 
     if request.method == 'POST':
         try:
-            relay_num = int(request.POST.get('relay'))
             action = request.POST.get('action')
-            selected_pin = relay_pins[relay_num - 1]
 
+            # Redirect to settings form if 'settings' action is triggered
             if action == 'settings':
                 return redirect('settings_form')
             
@@ -81,6 +80,9 @@ def submit_control(request):
             
             # Handle relay actions only if the system is active
             if system_active:
+                relay_num = int(request.POST.get('relay'))
+                selected_pin = relay_pins[relay_num - 1]
+
                 if action == 'on':
                     lgpio.gpio_write(h, selected_pin, 1)
                 elif action == 'off':
@@ -107,6 +109,7 @@ def submit_control(request):
                             lgpio.gpio_write(h, selected_pin, 0) # Turn the relay off
             return redirect('control_form') # Go back to the control form
         except Exception as e:
+            messages.error(request, f"An error occurred: {e}")  # Show an error message
             return redirect('control_form')
     return redirect('control_form')
 
