@@ -64,6 +64,10 @@ def submit_control(request):
             relay_num = int(request.POST.get('relay'))
             action = request.POST.get('action')
             selected_pin = relay_pins[relay_num - 1]
+
+            # Initialize or fetch the cumulative runtime from session
+            cumulative_runtime = request.session.get('cumulative_runtime', 0)
+
             if action == 'settings':
                 return redirect('settings_form')
             elif action == 'on':
@@ -71,24 +75,33 @@ def submit_control(request):
             elif action == 'off':
                 lgpio.gpio_write(h, selected_pin, 0)
             elif action == 'activate':
-                if is_forecast_data_outdated(request): # Check if forecast is outdated
-                    postcode = request.session.get('postcode') # Get the postcode from the session
-                    tomorrows_percentage = get_weather_data(request, postcode) # Refresh forecast data
-                    store_forecast_in_session(request, tomorrows_percentage) # Store the updated forecast
+                if is_forecast_data_outdated(request):  # Check if forecast is outdated
+                    postcode = request.session.get('postcode')  # Get the postcode from the session
+                    tomorrows_percentage = get_weather_data(request, postcode)  # Refresh forecast data
+                    store_forecast_in_session(request, tomorrows_percentage)  # Store the updated forecast
+                
                 sensor_threshold = request.session.get('sensor_threshold', 2000)  # Default threshold
                 run_time = request.session.get('runtime', 120)  # Default runtime in seconds
                
                 while True:
-                    sensor_value = read_sensor() # Read the soil moisture sensor
-                    if sensor_value < sensor_threshold: # Check if the soil is too dry
-                        tomorrows_forecast = request.session.get('tomorrows_percentage', 0)  # Fetch stored forecast %                        
-                        if tomorrows_forecast < 75: # Check is its going to rain
-                            lgpio.gpio_write(h, selected_pin, 1) # Turn the relay on
-                            startTime = time.time() # Start the runtime
+                    sensor_value = read_sensor()  # Read the soil moisture sensor
+                    if sensor_value < sensor_threshold:  # Check if the soil is too dry
+                        tomorrows_forecast = request.session.get('tomorrows_percentage', 0)  # Fetch stored forecast %
+                        if tomorrows_forecast < 75:  # Check if it's going to rain
+                            lgpio.gpio_write(h, selected_pin, 1)  # Turn the relay on
+                            startTime = time.time()  # Start the runtime
+                            
+                            # Relay remains on for the specified run time
                             while time.time() < startTime + run_time:
-                                time.sleep(0.1)  # The relay remains on for the specified run time                          
-                            lgpio.gpio_write(h, selected_pin, 0) # Turn the relay off
-            return redirect('control_form') # Go back to the control form
+                                time.sleep(0.1)
+
+                            lgpio.gpio_write(h, selected_pin, 0)  # Turn the relay off
+
+                            # Increment the cumulative runtime
+                            cumulative_runtime += run_time
+                            request.session['cumulative_runtime'] = cumulative_runtime
+
+            return redirect('control_form')  # Go back to the control form
         except Exception as e:
             return redirect('control_form')
     return redirect('control_form')

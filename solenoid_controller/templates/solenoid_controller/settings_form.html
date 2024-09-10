@@ -8,6 +8,7 @@
     <form method="POST" action="{% url 'solenoid_controller:submit_settings' %}">
         {% csrf_token %}
         <h2>Settings</h2>
+        
         <select id="vegetables" name="vegetables">
             <optgroup label="0-5% Soil Moisture">
                 <option value="garlic">Garlic</option>
